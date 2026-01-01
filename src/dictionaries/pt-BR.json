@@ -6,7 +6,7 @@
     "hours": "Horas",
     "minutes": "Minutos",
     "seconds": "Segundos",
-    "spokenCountdown": "Nos últimos 10 segundos, faremos a contagem juntos!"
+    "spokenCountdown": "Avisos de voz ativados para a contagem regressiva!"
   },
   "newYear": {
     "message": "FELIZ ANO NOVO!",
@@ -30,6 +30,22 @@
       "islamic": "Ano Novo Islâmico",
       "persian": "Nowruz (Persa)",
       "thai": "Songkran (Tailandês)"
+    },
+    "notifications": {
+      "title": "Avisos de Voz",
+      "enabled": "Ativar avisos de voz",
+      "culturalVoice": "Usar idioma cultural para a fala",
+      "culturalVoiceHint": "Fala no idioma nativo do tipo de Ano Novo selecionado",
+      "times": "Horários dos Avisos",
+      "fiveMinutes": "5 minutos antes",
+      "oneMinute": "1 minuto antes",
+      "thirtySeconds": "30 segundos antes",
+      "countdown": "Contagem dos últimos 10 segundos",
+      "addCustom": "Adicionar horário personalizado",
+      "customTimeLabel": "Aviso personalizado",
+      "minutesBefore": "minutos antes",
+      "secondsBefore": "segundos antes",
+      "remove": "Remover"
     }
   }
 }

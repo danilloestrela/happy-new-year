@@ -2,8 +2,9 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Fireworks } from '@fireworks-js/react'
 import { useTranslation } from "@/hooks/useTranslation";
-import { Settings } from "@/components/Settings";
+import { Settings, defaultNotificationSettings, type NotificationSettings } from "@/components/Settings";
 import { getNewYearType, type NewYearType } from "@/lib/newYearTypes";
+import { getCulturalMessages, getSpeechLanguage } from "@/lib/culturalNotifications";
 
 interface TimeLeft {
   days: number;
@@ -21,21 +22,43 @@ export default function Home() {
   const [targetDate, setTargetDate] = useState<Date | null>(null);
   const [timezone, setTimezone] = useState<string>('local');
   const [newYearType, setNewYearType] = useState<NewYearType>('gregorian');
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
+
+  // Track which notifications have been spoken
+  const spokenNotifications = useRef<Set<string>>(new Set());
   const lastSpokenSecond = useRef<number>(-1);
   const localeRef = useRef(locale);
+  const newYearTypeRef = useRef(newYearType);
+  const notificationSettingsRef = useRef(notificationSettings);
 
-  // Keep localeRef in sync with locale
+  // Keep refs in sync
   useEffect(() => {
     localeRef.current = locale;
   }, [locale]);
+
+  useEffect(() => {
+    newYearTypeRef.current = newYearType;
+  }, [newYearType]);
+
+  useEffect(() => {
+    notificationSettingsRef.current = notificationSettings;
+  }, [notificationSettings]);
 
   // Load saved preferences
   useEffect(() => {
     const savedTimezone = localStorage.getItem('timezone');
     const savedNewYearType = localStorage.getItem('newYearType') as NewYearType | null;
+    const savedNotifications = localStorage.getItem('notificationSettings');
 
     if (savedTimezone) setTimezone(savedTimezone);
     if (savedNewYearType) setNewYearType(savedNewYearType);
+    if (savedNotifications) {
+      try {
+        setNotificationSettings(JSON.parse(savedNotifications));
+      } catch {
+        // Use defaults
+      }
+    }
   }, []);
 
   // Calculate target date when settings change
@@ -62,6 +85,7 @@ export default function Home() {
     setTargetYear(yearLabel);
     setIsNewYear(false);
     setShowFireworks(false);
+    spokenNotifications.current.clear();
     lastSpokenSecond.current = -1;
   }, [newYearType, timezone]);
 
@@ -80,6 +104,29 @@ export default function Home() {
     localStorage.setItem('newYearType', type);
   };
 
+  const handleNotificationSettingsChange = (settings: NotificationSettings) => {
+    setNotificationSettings(settings);
+    localStorage.setItem('notificationSettings', JSON.stringify(settings));
+  };
+
+  // Speech function with cultural awareness
+  const speak = useCallback((text: string, useCulturalVoice: boolean = false) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    // Determine the language to use
+    if (useCulturalVoice && notificationSettingsRef.current.useCulturalVoice) {
+      utterance.lang = getSpeechLanguage(newYearTypeRef.current, localeRef.current);
+    } else {
+      utterance.lang = localeRef.current;
+    }
+
+    utterance.rate = 1.0;
+    speechSynthesis.speak(utterance);
+  }, []);
+
   // Main countdown effect
   useEffect(() => {
     if (!targetDate) return;
@@ -87,13 +134,12 @@ export default function Home() {
     const calculateTimeLeft = (): TimeLeft | null => {
       let now = new Date();
 
-      // Apply timezone if not local
       if (timezone !== 'local') {
         try {
           const tzString = now.toLocaleString('en-US', { timeZone: timezone });
           now = new Date(tzString);
         } catch {
-          // Fallback to local time
+          // Fallback
         }
       }
 
@@ -111,56 +157,81 @@ export default function Home() {
       };
     };
 
-    const speakNumber = (num: number) => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(num.toString());
-        utterance.lang = localeRef.current;
-        utterance.rate = 1.2;
-        speechSynthesis.speak(utterance);
-      }
-    };
-
-    const speakNewYear = (message: string) => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.lang = localeRef.current;
-        speechSynthesis.speak(utterance);
-      }
-    };
-
     const interval = setInterval(() => {
       let now = new Date();
 
-      // Apply timezone if not local
       if (timezone !== 'local') {
         try {
           const tzString = now.toLocaleString('en-US', { timeZone: timezone });
           now = new Date(tzString);
         } catch {
-          // Fallback to local time
+          // Fallback
         }
       }
 
       const distance = targetDate.getTime() - now.getTime();
+      const settings = notificationSettingsRef.current;
+      const messages = getCulturalMessages(newYearTypeRef.current, localeRef.current);
 
       if (distance <= 0) {
         clearInterval(interval);
         setShowFireworks(true);
         setIsNewYear(true);
         setTimeLeft(null);
-        // Speak "Happy New Year" in current locale
-        const message = localeRef.current === 'pt-BR' ? 'Feliz Ano Novo!' : 'Happy New Year!';
-        speakNewYear(message);
+
+        // Speak Happy New Year
+        if (settings.enabled) {
+          speak(messages.happyNewYear, true);
+        }
         return;
       }
 
-      // Spoken countdown in the last 10 seconds
       const secondsLeft = Math.floor(distance / 1000);
-      if (secondsLeft <= 10 && secondsLeft > 0 && secondsLeft !== lastSpokenSecond.current) {
-        lastSpokenSecond.current = secondsLeft;
-        speakNumber(secondsLeft);
+
+      // Handle notifications
+      if (settings.enabled) {
+        // 5 minutes
+        if (settings.fiveMinutes && secondsLeft === 300 && !spokenNotifications.current.has('5min')) {
+          spokenNotifications.current.add('5min');
+          speak(messages.timeRemaining(5, 0), true);
+        }
+
+        // 1 minute
+        if (settings.oneMinute && secondsLeft === 60 && !spokenNotifications.current.has('1min')) {
+          spokenNotifications.current.add('1min');
+          speak(messages.oneMinute, true);
+        }
+
+        // 30 seconds
+        if (settings.thirtySeconds && secondsLeft === 30 && !spokenNotifications.current.has('30sec')) {
+          spokenNotifications.current.add('30sec');
+          speak(messages.thirtySeconds, true);
+        }
+
+        // 10 seconds
+        if (secondsLeft === 10 && !spokenNotifications.current.has('10sec')) {
+          spokenNotifications.current.add('10sec');
+          if (!settings.countdown) {
+            speak(messages.tenSeconds, true);
+          }
+        }
+
+        // Custom times
+        for (const customSeconds of settings.customTimes) {
+          const key = `custom-${customSeconds}`;
+          if (secondsLeft === customSeconds && !spokenNotifications.current.has(key)) {
+            spokenNotifications.current.add(key);
+            const minutes = Math.floor(customSeconds / 60);
+            const secs = customSeconds % 60;
+            speak(messages.timeRemaining(minutes, secs), true);
+          }
+        }
+
+        // Countdown 10...1
+        if (settings.countdown && secondsLeft <= 10 && secondsLeft > 0 && secondsLeft !== lastSpokenSecond.current) {
+          lastSpokenSecond.current = secondsLeft;
+          speak(messages.countdownNumber(secondsLeft), true);
+        }
       }
 
       setTimeLeft(calculateTimeLeft());
@@ -174,7 +245,7 @@ export default function Home() {
         speechSynthesis.cancel();
       }
     };
-  }, [targetDate, timezone]);
+  }, [targetDate, timezone, speak]);
 
   if (!isLoaded || targetYear === null) {
     return (
@@ -196,6 +267,8 @@ export default function Home() {
         onTimezoneChange={handleTimezoneChange}
         newYearType={newYearType}
         onNewYearTypeChange={handleNewYearTypeChange}
+        notificationSettings={notificationSettings}
+        onNotificationSettingsChange={handleNotificationSettingsChange}
         translations={t}
       />
 
@@ -264,9 +337,14 @@ export default function Home() {
               </div>
             )}
 
-            <p className="mt-12 text-gray-400 text-center">
-              {t.countdown.spokenCountdown}
-            </p>
+            {notificationSettings.enabled && (
+              <p className="mt-12 text-gray-400 text-center flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+                </svg>
+                {t.countdown.spokenCountdown}
+              </p>
+            )}
           </>
         )}
       </main>

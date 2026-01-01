@@ -52,6 +52,26 @@ const timezones = [
   ]},
 ];
 
+export interface NotificationSettings {
+  enabled: boolean;
+  useCulturalVoice: boolean;
+  fiveMinutes: boolean;
+  oneMinute: boolean;
+  thirtySeconds: boolean;
+  countdown: boolean;
+  customTimes: number[]; // in seconds
+}
+
+export const defaultNotificationSettings: NotificationSettings = {
+  enabled: true,
+  useCulturalVoice: false,
+  fiveMinutes: true,
+  oneMinute: true,
+  thirtySeconds: true,
+  countdown: true,
+  customTimes: [],
+};
+
 interface SettingsProps {
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
@@ -59,6 +79,8 @@ interface SettingsProps {
   onTimezoneChange: (timezone: string) => void;
   newYearType: NewYearType;
   onNewYearTypeChange: (type: NewYearType) => void;
+  notificationSettings: NotificationSettings;
+  onNotificationSettingsChange: (settings: NotificationSettings) => void;
   translations: {
     settings: {
       title: string;
@@ -68,6 +90,22 @@ interface SettingsProps {
       close: string;
       autoDetect: string;
       types: Record<NewYearType, string>;
+      notifications: {
+        title: string;
+        enabled: string;
+        culturalVoice: string;
+        culturalVoiceHint: string;
+        times: string;
+        fiveMinutes: string;
+        oneMinute: string;
+        thirtySeconds: string;
+        countdown: string;
+        addCustom: string;
+        customTimeLabel: string;
+        minutesBefore: string;
+        secondsBefore: string;
+        remove: string;
+      };
     };
   };
 }
@@ -79,10 +117,15 @@ export function Settings({
   onTimezoneChange,
   newYearType,
   onNewYearTypeChange,
+  notificationSettings,
+  onNotificationSettingsChange,
   translations,
 }: SettingsProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [customMinutes, setCustomMinutes] = useState('');
+  const [customSeconds, setCustomSeconds] = useState('');
   const t = translations.settings;
+  const tn = t.notifications;
 
   // Close on escape key
   useEffect(() => {
@@ -94,6 +137,41 @@ export function Settings({
       return () => document.removeEventListener('keydown', handleEscape);
     }
   }, [isOpen]);
+
+  const updateNotification = (key: keyof NotificationSettings, value: boolean | number[]) => {
+    onNotificationSettingsChange({
+      ...notificationSettings,
+      [key]: value,
+    });
+  };
+
+  const addCustomTime = () => {
+    const minutes = parseInt(customMinutes) || 0;
+    const seconds = parseInt(customSeconds) || 0;
+    const totalSeconds = minutes * 60 + seconds;
+
+    if (totalSeconds > 0 && !notificationSettings.customTimes.includes(totalSeconds)) {
+      updateNotification('customTimes', [...notificationSettings.customTimes, totalSeconds].sort((a, b) => b - a));
+      setCustomMinutes('');
+      setCustomSeconds('');
+    }
+  };
+
+  const removeCustomTime = (seconds: number) => {
+    updateNotification('customTimes', notificationSettings.customTimes.filter(t => t !== seconds));
+  };
+
+  const formatCustomTime = (totalSeconds: number): string => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes > 0 && seconds > 0) {
+      return `${minutes}m ${seconds}s`;
+    } else if (minutes > 0) {
+      return `${minutes} ${tn.minutesBefore}`;
+    } else {
+      return `${seconds} ${tn.secondsBefore}`;
+    }
+  };
 
   return (
     <>
@@ -129,9 +207,9 @@ export function Settings({
           }}
         >
           {/* Modal content */}
-          <div className="w-full max-w-md bg-slate-900/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-slate-900/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/10">
+            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-white/10 bg-slate-900/95 backdrop-blur-xl rounded-t-2xl">
               <h2 className="text-xl font-semibold text-white flex items-center gap-2">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -222,6 +300,158 @@ export function Settings({
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-white/10 pt-4">
+                <h3 className="text-lg font-medium text-white flex items-center gap-2 mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-purple-400">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+                  </svg>
+                  {tn.title}
+                </h3>
+
+                {/* Enable notifications toggle */}
+                <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg cursor-pointer hover:bg-white/10 transition-colors mb-3">
+                  <span className="text-sm text-gray-300">{tn.enabled}</span>
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={notificationSettings.enabled}
+                      onChange={(e) => updateNotification('enabled', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                  </div>
+                </label>
+
+                {/* Cultural voice toggle */}
+                {newYearType !== 'gregorian' && (
+                  <label className="flex items-center justify-between p-3 bg-white/5 rounded-lg cursor-pointer hover:bg-white/10 transition-colors mb-3">
+                    <div>
+                      <span className="text-sm text-gray-300 block">{tn.culturalVoice}</span>
+                      <span className="text-xs text-gray-500">{tn.culturalVoiceHint}</span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={notificationSettings.useCulturalVoice}
+                        onChange={(e) => updateNotification('useCulturalVoice', e.target.checked)}
+                        className="sr-only peer"
+                        disabled={!notificationSettings.enabled}
+                      />
+                      <div className={`w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 ${!notificationSettings.enabled ? 'opacity-50' : ''}`}></div>
+                    </div>
+                  </label>
+                )}
+
+                {/* Notification times */}
+                <div className={`space-y-2 ${!notificationSettings.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <p className="text-sm text-gray-400 mb-2">{tn.times}</p>
+
+                  {/* 5 minutes */}
+                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notificationSettings.fiveMinutes}
+                      onChange={(e) => updateNotification('fiveMinutes', e.target.checked)}
+                      className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-300">{tn.fiveMinutes}</span>
+                  </label>
+
+                  {/* 1 minute */}
+                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notificationSettings.oneMinute}
+                      onChange={(e) => updateNotification('oneMinute', e.target.checked)}
+                      className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-300">{tn.oneMinute}</span>
+                  </label>
+
+                  {/* 30 seconds */}
+                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notificationSettings.thirtySeconds}
+                      onChange={(e) => updateNotification('thirtySeconds', e.target.checked)}
+                      className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-300">{tn.thirtySeconds}</span>
+                  </label>
+
+                  {/* Countdown */}
+                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notificationSettings.countdown}
+                      onChange={(e) => updateNotification('countdown', e.target.checked)}
+                      className="w-4 h-4 text-purple-600 bg-gray-700 border-gray-600 rounded focus:ring-purple-500"
+                    />
+                    <span className="text-sm text-gray-300">{tn.countdown}</span>
+                  </label>
+
+                  {/* Custom times list */}
+                  {notificationSettings.customTimes.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {notificationSettings.customTimes.map((seconds) => (
+                        <div key={seconds} className="flex items-center justify-between p-2 bg-white/5 rounded-lg">
+                          <span className="text-sm text-gray-300">
+                            {formatCustomTime(seconds)}
+                          </span>
+                          <button
+                            onClick={() => removeCustomTime(seconds)}
+                            className="p-1 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded transition-colors"
+                            title={tn.remove}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add custom time */}
+                  <div className="mt-4 p-3 bg-white/5 rounded-lg space-y-3">
+                    <p className="text-sm text-gray-400">{tn.addCustom}</p>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <input
+                          type="number"
+                          min="0"
+                          max="60"
+                          value={customMinutes}
+                          onChange={(e) => setCustomMinutes(e.target.value)}
+                          placeholder="0"
+                          className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        />
+                        <span className="text-xs text-gray-500 mt-1 block">min</span>
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          value={customSeconds}
+                          onChange={(e) => setCustomSeconds(e.target.value)}
+                          placeholder="0"
+                          className="w-full bg-white/10 border border-white/20 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        />
+                        <span className="text-xs text-gray-500 mt-1 block">sec</span>
+                      </div>
+                      <button
+                        onClick={addCustomTime}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors self-start"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

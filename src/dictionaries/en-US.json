@@ -6,7 +6,7 @@
     "hours": "Hours",
     "minutes": "Minutes",
     "seconds": "Seconds",
-    "spokenCountdown": "In the last 10 seconds, we'll count down together!"
+    "spokenCountdown": "Voice announcements enabled for the countdown!"
   },
   "newYear": {
     "message": "HAPPY NEW YEAR!",
@@ -30,6 +30,22 @@
       "islamic": "Islamic New Year",
       "persian": "Nowruz (Persian)",
       "thai": "Songkran (Thai)"
+    },
+    "notifications": {
+      "title": "Voice Announcements",
+      "enabled": "Enable voice announcements",
+      "culturalVoice": "Use cultural language for speech",
+      "culturalVoiceHint": "Speaks in the native language of the selected New Year type",
+      "times": "Announcement Times",
+      "fiveMinutes": "5 minutes before",
+      "oneMinute": "1 minute before",
+      "thirtySeconds": "30 seconds before",
+      "countdown": "Last 10 seconds countdown",
+      "addCustom": "Add custom time",
+      "customTimeLabel": "Custom announcement",
+      "minutesBefore": "minutes before",
+      "secondsBefore": "seconds before",
+      "remove": "Remove"
     }
   }
 }
