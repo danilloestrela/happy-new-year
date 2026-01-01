@@ -16,6 +16,7 @@ export default function Home() {
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
   const [showFireworks, setShowFireworks] = useState(false);
   const [isNewYear, setIsNewYear] = useState(false);
+  const [targetYear, setTargetYear] = useState<number | null>(null);
   const lastSpokenSecond = useRef<number>(-1);
   const localeRef = useRef(locale);
 
@@ -27,7 +28,11 @@ export default function Home() {
   useEffect(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
-    const targetDate = new Date(currentYear + 1, 0, 1);
+    const newYear = currentYear + 1;
+    const targetDate = new Date(newYear, 0, 1);
+
+    // Set the target year once when component mounts
+    setTargetYear(newYear);
 
     const calculateTimeLeft = (): TimeLeft | null => {
       const now = new Date();
@@ -99,9 +104,7 @@ export default function Home() {
     };
   }, []);
 
-  const targetYear = new Date().getFullYear() + 1;
-
-  if (!isLoaded) {
+  if (!isLoaded || targetYear === null) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-white text-2xl animate-pulse">Loading...</div>
