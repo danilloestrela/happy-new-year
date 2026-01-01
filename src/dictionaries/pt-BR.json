@@ -1,0 +1,18 @@
+{
+  "title": "Feliz Ano Novo",
+  "countdown": {
+    "heading": "Contagem Regressiva para",
+    "days": "Dias",
+    "hours": "Horas",
+    "minutes": "Minutos",
+    "seconds": "Segundos",
+    "spokenCountdown": "Nos últimos 10 segundos, faremos a contagem juntos!"
+  },
+  "newYear": {
+    "message": "FELIZ ANO NOVO!",
+    "wish": "Que este ano seja repleto de alegrias!"
+  },
+  "speech": {
+    "happyNewYear": "Feliz Ano Novo!"
+  }
+}

@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState, useRef } from "react";
 import { Fireworks } from '@fireworks-js/react'
+import { useTranslation } from "@/hooks/useTranslation";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 interface TimeLeft {
   days: number;
@@ -10,19 +12,22 @@ interface TimeLeft {
 }
 
 export default function Home() {
+  const { t, locale, setLocale, isLoaded } = useTranslation();
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
   const [showFireworks, setShowFireworks] = useState(false);
   const [isNewYear, setIsNewYear] = useState(false);
   const lastSpokenSecond = useRef<number>(-1);
+  const localeRef = useRef(locale);
+
+  // Keep localeRef in sync with locale
+  useEffect(() => {
+    localeRef.current = locale;
+  }, [locale]);
 
   useEffect(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
-    // Se já passou meia-noite de 1º de janeiro, mostra a celebração
-    const isAlreadyNewYear = now.getMonth() === 0 && now.getDate() === 1;
-    const targetDate = isAlreadyNewYear
-      ? new Date(currentYear + 1, 0, 1)
-      : new Date(currentYear + 1, 0, 1);
+    const targetDate = new Date(currentYear + 1, 0, 1);
 
     const calculateTimeLeft = (): TimeLeft | null => {
       const now = new Date();
@@ -42,11 +47,19 @@ export default function Home() {
 
     const speakNumber = (num: number) => {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        // Cancela qualquer fala anterior para evitar sobreposição
         speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(num.toString());
-        utterance.lang = "pt-BR";
+        utterance.lang = localeRef.current;
         utterance.rate = 1.2;
+        speechSynthesis.speak(utterance);
+      }
+    };
+
+    const speakNewYear = (message: string) => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = localeRef.current;
         speechSynthesis.speak(utterance);
       }
     };
@@ -60,17 +73,13 @@ export default function Home() {
         setShowFireworks(true);
         setIsNewYear(true);
         setTimeLeft(null);
-        // Fala "Feliz Ano Novo" quando chegar
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance("Feliz Ano Novo!");
-          utterance.lang = "pt-BR";
-          speechSynthesis.speak(utterance);
-        }
+        // Speak "Happy New Year" in current locale
+        const message = localeRef.current === 'pt-BR' ? 'Feliz Ano Novo!' : 'Happy New Year!';
+        speakNewYear(message);
         return;
       }
 
-      // Contagem falada nos últimos 10 segundos (evita sobreposição)
+      // Spoken countdown in the last 10 seconds
       const secondsLeft = Math.floor(distance / 1000);
       if (secondsLeft <= 10 && secondsLeft > 0 && secondsLeft !== lastSpokenSecond.current) {
         lastSpokenSecond.current = secondsLeft;
@@ -80,7 +89,6 @@ export default function Home() {
       setTimeLeft(calculateTimeLeft());
     }, 1000);
 
-    // Calcula imediatamente
     setTimeLeft(calculateTimeLeft());
 
     return () => {
@@ -93,9 +101,18 @@ export default function Home() {
 
   const targetYear = new Date().getFullYear() + 1;
 
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-2xl animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900">
-      {/* Fogos de artifício - atrás do conteúdo mas visíveis */}
+      <LanguageSwitcher locale={locale} onChange={setLocale} />
+
       {showFireworks && (
         <div className="fixed inset-0 z-0">
           <Fireworks
@@ -120,37 +137,36 @@ export default function Home() {
         </div>
       )}
 
-      {/* Conteúdo principal */}
       <main className="relative z-10 flex flex-col items-center justify-center min-h-screen p-8 text-white">
         {isNewYear ? (
           <div className="text-center animate-pulse">
             <h1 className="text-6xl md:text-8xl font-bold mb-4 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-500 bg-clip-text text-transparent animate-bounce">
-              🎆 FELIZ ANO NOVO! 🎆
+              🎆 {t.newYear.message} 🎆
             </h1>
             <p className="text-4xl md:text-6xl font-bold text-yellow-300">
               {targetYear}
             </p>
             <p className="text-xl mt-8 text-gray-300">
-              Que este ano seja repleto de alegrias! 🎉
+              {t.newYear.wish} 🎉
             </p>
           </div>
         ) : (
           <>
             <h1 className="text-3xl md:text-5xl font-bold mb-8 text-center bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Contagem Regressiva para {targetYear}
+              {t.countdown.heading} {targetYear}
             </h1>
 
             {timeLeft && (
               <div className="flex flex-wrap justify-center gap-4 md:gap-8">
-                <TimeBlock value={timeLeft.days} label="Dias" />
-                <TimeBlock value={timeLeft.hours} label="Horas" />
-                <TimeBlock value={timeLeft.minutes} label="Minutos" />
-                <TimeBlock value={timeLeft.seconds} label="Segundos" highlight />
+                <TimeBlock value={timeLeft.days} label={t.countdown.days} />
+                <TimeBlock value={timeLeft.hours} label={t.countdown.hours} />
+                <TimeBlock value={timeLeft.minutes} label={t.countdown.minutes} />
+                <TimeBlock value={timeLeft.seconds} label={t.countdown.seconds} highlight />
               </div>
             )}
 
             <p className="mt-12 text-gray-400 text-center">
-              ✨ Nos últimos 10 segundos, faremos a contagem juntos! ✨
+              ✨ {t.countdown.spokenCountdown} ✨
             </p>
           </>
         )}

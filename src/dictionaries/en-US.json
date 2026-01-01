@@ -1,0 +1,18 @@
+{
+  "title": "Happy New Year",
+  "countdown": {
+    "heading": "Countdown to",
+    "days": "Days",
+    "hours": "Hours",
+    "minutes": "Minutes",
+    "seconds": "Seconds",
+    "spokenCountdown": "In the last 10 seconds, we'll count down together!"
+  },
+  "newYear": {
+    "message": "HAPPY NEW YEAR!",
+    "wish": "May this year be full of joy!"
+  },
+  "speech": {
+    "happyNewYear": "Happy New Year!"
+  }
+}
