@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Feliz Ano Novo 2025! 🎆",
-  description: "Contagem regressiva para o Ano Novo com fogos de artifício!",
+  title: "New Year Countdown",
+  description: "Countdown to New Year with fireworks and cultural celebrations!",
 };
 
 export default function RootLayout({

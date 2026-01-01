@@ -51,6 +51,19 @@ export default function Home() {
     notificationSettingsRef.current = notificationSettings;
   }, [notificationSettings]);
 
+  // Update document title dynamically
+  useEffect(() => {
+    if (!isLoaded || !targetYear) return;
+
+    const typeName = newYearType !== 'gregorian' ? ` - ${t.settings?.types?.[newYearType] || ''}` : '';
+
+    if (isNewYear) {
+      document.title = `🎆 ${t.newYear.message} ${targetYear}${typeName}`;
+    } else {
+      document.title = `${t.countdown.heading} ${targetYear}${typeName}`;
+    }
+  }, [isLoaded, targetYear, isNewYear, newYearType, t]);
+
   // Load saved preferences
   useEffect(() => {
     const savedTimezone = localStorage.getItem('timezone');
