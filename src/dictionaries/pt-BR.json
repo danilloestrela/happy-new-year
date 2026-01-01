@@ -14,5 +14,22 @@
   },
   "speech": {
     "happyNewYear": "Feliz Ano Novo!"
+  },
+  "settings": {
+    "title": "Configurações",
+    "language": "Idioma",
+    "timezone": "Fuso Horário",
+    "newYearType": "Tipo de Ano Novo",
+    "close": "Fechar",
+    "autoDetect": "Auto-detectar (Local)",
+    "types": {
+      "gregorian": "Gregoriano (1º de Janeiro)",
+      "chinese": "Ano Novo Chinês",
+      "japanese": "Ano Novo Japonês",
+      "jewish": "Rosh Hashaná (Judaico)",
+      "islamic": "Ano Novo Islâmico",
+      "persian": "Nowruz (Persa)",
+      "thai": "Songkran (Tailandês)"
+    }
   }
 }

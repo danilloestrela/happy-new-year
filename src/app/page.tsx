@@ -1,8 +1,9 @@
 'use client'
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Fireworks } from '@fireworks-js/react'
 import { useTranslation } from "@/hooks/useTranslation";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Settings } from "@/components/Settings";
+import { getNewYearType, type NewYearType } from "@/lib/newYearTypes";
 
 interface TimeLeft {
   days: number;
@@ -16,7 +17,10 @@ export default function Home() {
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
   const [showFireworks, setShowFireworks] = useState(false);
   const [isNewYear, setIsNewYear] = useState(false);
-  const [targetYear, setTargetYear] = useState<number | null>(null);
+  const [targetYear, setTargetYear] = useState<string | null>(null);
+  const [targetDate, setTargetDate] = useState<Date | null>(null);
+  const [timezone, setTimezone] = useState<string>('local');
+  const [newYearType, setNewYearType] = useState<NewYearType>('gregorian');
   const lastSpokenSecond = useRef<number>(-1);
   const localeRef = useRef(locale);
 
@@ -25,17 +29,74 @@ export default function Home() {
     localeRef.current = locale;
   }, [locale]);
 
+  // Load saved preferences
   useEffect(() => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const newYear = currentYear + 1;
-    const targetDate = new Date(newYear, 0, 1);
+    const savedTimezone = localStorage.getItem('timezone');
+    const savedNewYearType = localStorage.getItem('newYearType') as NewYearType | null;
 
-    // Set the target year once when component mounts
-    setTargetYear(newYear);
+    if (savedTimezone) setTimezone(savedTimezone);
+    if (savedNewYearType) setNewYearType(savedNewYearType);
+  }, []);
+
+  // Calculate target date when settings change
+  const calculateTargetDate = useCallback(() => {
+    const typeInfo = getNewYearType(newYearType);
+    if (!typeInfo) return;
+
+    let now = new Date();
+
+    // Apply timezone if not local
+    if (timezone !== 'local') {
+      try {
+        const tzString = now.toLocaleString('en-US', { timeZone: timezone });
+        now = new Date(tzString);
+      } catch {
+        // Fallback to local time
+      }
+    }
+
+    const nextNewYear = typeInfo.getNextNewYear(now);
+    const yearLabel = typeInfo.getYearLabel(nextNewYear);
+
+    setTargetDate(nextNewYear);
+    setTargetYear(yearLabel);
+    setIsNewYear(false);
+    setShowFireworks(false);
+    lastSpokenSecond.current = -1;
+  }, [newYearType, timezone]);
+
+  useEffect(() => {
+    calculateTargetDate();
+  }, [calculateTargetDate]);
+
+  // Save preferences
+  const handleTimezoneChange = (tz: string) => {
+    setTimezone(tz);
+    localStorage.setItem('timezone', tz);
+  };
+
+  const handleNewYearTypeChange = (type: NewYearType) => {
+    setNewYearType(type);
+    localStorage.setItem('newYearType', type);
+  };
+
+  // Main countdown effect
+  useEffect(() => {
+    if (!targetDate) return;
 
     const calculateTimeLeft = (): TimeLeft | null => {
-      const now = new Date();
+      let now = new Date();
+
+      // Apply timezone if not local
+      if (timezone !== 'local') {
+        try {
+          const tzString = now.toLocaleString('en-US', { timeZone: timezone });
+          now = new Date(tzString);
+        } catch {
+          // Fallback to local time
+        }
+      }
+
       const distance = targetDate.getTime() - now.getTime();
 
       if (distance <= 0) {
@@ -70,7 +131,18 @@ export default function Home() {
     };
 
     const interval = setInterval(() => {
-      const now = new Date();
+      let now = new Date();
+
+      // Apply timezone if not local
+      if (timezone !== 'local') {
+        try {
+          const tzString = now.toLocaleString('en-US', { timeZone: timezone });
+          now = new Date(tzString);
+        } catch {
+          // Fallback to local time
+        }
+      }
+
       const distance = targetDate.getTime() - now.getTime();
 
       if (distance <= 0) {
@@ -102,7 +174,7 @@ export default function Home() {
         speechSynthesis.cancel();
       }
     };
-  }, []);
+  }, [targetDate, timezone]);
 
   if (!isLoaded || targetYear === null) {
     return (
@@ -112,9 +184,20 @@ export default function Home() {
     );
   }
 
+  const typeInfo = getNewYearType(newYearType);
+  const typeName = t.settings?.types?.[newYearType] || typeInfo?.nameKey || '';
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-900 via-purple-900 to-slate-900">
-      <LanguageSwitcher locale={locale} onChange={setLocale} />
+      <Settings
+        locale={locale}
+        onLocaleChange={setLocale}
+        timezone={timezone}
+        onTimezoneChange={handleTimezoneChange}
+        newYearType={newYearType}
+        onNewYearTypeChange={handleNewYearTypeChange}
+        translations={t}
+      />
 
       {showFireworks && (
         <div className="fixed inset-0 z-0">
@@ -144,20 +227,33 @@ export default function Home() {
         {isNewYear ? (
           <div className="text-center animate-pulse">
             <h1 className="text-6xl md:text-8xl font-bold mb-4 bg-gradient-to-r from-yellow-400 via-pink-500 to-purple-500 bg-clip-text text-transparent animate-bounce">
-              🎆 {t.newYear.message} 🎆
+              {t.newYear.message}
             </h1>
             <p className="text-4xl md:text-6xl font-bold text-yellow-300">
               {targetYear}
             </p>
+            {newYearType !== 'gregorian' && (
+              <p className="text-lg mt-4 text-purple-300">
+                {typeName}
+              </p>
+            )}
             <p className="text-xl mt-8 text-gray-300">
-              {t.newYear.wish} 🎉
+              {t.newYear.wish}
             </p>
           </div>
         ) : (
           <>
-            <h1 className="text-3xl md:text-5xl font-bold mb-8 text-center bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              {t.countdown.heading} {targetYear}
+            <h1 className="text-3xl md:text-5xl font-bold mb-2 text-center bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              {t.countdown.heading}
             </h1>
+            {newYearType !== 'gregorian' && (
+              <p className="text-lg text-purple-300 mb-2">
+                {typeName}
+              </p>
+            )}
+            <p className="text-2xl md:text-4xl font-semibold text-yellow-300 mb-8">
+              {targetYear}
+            </p>
 
             {timeLeft && (
               <div className="flex flex-wrap justify-center gap-4 md:gap-8">
@@ -169,7 +265,7 @@ export default function Home() {
             )}
 
             <p className="mt-12 text-gray-400 text-center">
-              ✨ {t.countdown.spokenCountdown} ✨
+              {t.countdown.spokenCountdown}
             </p>
           </>
         )}

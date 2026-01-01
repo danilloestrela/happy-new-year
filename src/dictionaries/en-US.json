@@ -14,5 +14,22 @@
   },
   "speech": {
     "happyNewYear": "Happy New Year!"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "timezone": "Timezone",
+    "newYearType": "New Year Type",
+    "close": "Close",
+    "autoDetect": "Auto-detect (Local)",
+    "types": {
+      "gregorian": "Gregorian (Jan 1)",
+      "chinese": "Chinese New Year",
+      "japanese": "Japanese New Year",
+      "jewish": "Rosh Hashanah (Jewish)",
+      "islamic": "Islamic New Year",
+      "persian": "Nowruz (Persian)",
+      "thai": "Songkran (Thai)"
+    }
   }
 }
