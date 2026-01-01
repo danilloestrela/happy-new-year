@@ -5,6 +5,13 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { Settings, defaultNotificationSettings, type NotificationSettings } from "@/components/Settings";
 import { getNewYearType, type NewYearType } from "@/lib/newYearTypes";
 import { getCulturalMessages, getSpeechLanguage } from "@/lib/culturalNotifications";
+import {
+  speakNaturally,
+  speakCountdownNumber,
+  speakAnnouncement,
+  speakCelebration,
+  initVoices,
+} from "@/lib/speechUtils";
 
 interface TimeLeft {
   days: number;
@@ -109,22 +116,17 @@ export default function Home() {
     localStorage.setItem('notificationSettings', JSON.stringify(settings));
   };
 
-  // Speech function with cultural awareness
-  const speak = useCallback((text: string, useCulturalVoice: boolean = false) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  // Initialize voices on mount
+  useEffect(() => {
+    initVoices();
+  }, []);
 
-    speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-
-    // Determine the language to use
-    if (useCulturalVoice && notificationSettingsRef.current.useCulturalVoice) {
-      utterance.lang = getSpeechLanguage(newYearTypeRef.current, localeRef.current);
-    } else {
-      utterance.lang = localeRef.current;
+  // Get the appropriate language for speech
+  const getSpeechLang = useCallback(() => {
+    if (notificationSettingsRef.current.useCulturalVoice) {
+      return getSpeechLanguage(newYearTypeRef.current, localeRef.current);
     }
-
-    utterance.rate = 1.0;
-    speechSynthesis.speak(utterance);
+    return localeRef.current;
   }, []);
 
   // Main countdown effect
@@ -172,6 +174,7 @@ export default function Home() {
       const distance = targetDate.getTime() - now.getTime();
       const settings = notificationSettingsRef.current;
       const messages = getCulturalMessages(newYearTypeRef.current, localeRef.current);
+      const lang = getSpeechLang();
 
       if (distance <= 0) {
         clearInterval(interval);
@@ -179,9 +182,9 @@ export default function Home() {
         setIsNewYear(true);
         setTimeLeft(null);
 
-        // Speak Happy New Year
+        // Speak Happy New Year with celebration effect
         if (settings.enabled) {
-          speak(messages.happyNewYear, true);
+          speakCelebration(messages.happyNewYear, lang, messages.culturalPhrase);
         }
         return;
       }
@@ -190,29 +193,29 @@ export default function Home() {
 
       // Handle notifications
       if (settings.enabled) {
-        // 5 minutes
+        // 5 minutes - low urgency, calm announcement
         if (settings.fiveMinutes && secondsLeft === 300 && !spokenNotifications.current.has('5min')) {
           spokenNotifications.current.add('5min');
-          speak(messages.timeRemaining(5, 0), true);
+          speakAnnouncement(messages.timeRemaining(5, 0), lang, 'low');
         }
 
-        // 1 minute
+        // 1 minute - medium urgency
         if (settings.oneMinute && secondsLeft === 60 && !spokenNotifications.current.has('1min')) {
           spokenNotifications.current.add('1min');
-          speak(messages.oneMinute, true);
+          speakAnnouncement(messages.oneMinute, lang, 'medium');
         }
 
-        // 30 seconds
+        // 30 seconds - higher urgency
         if (settings.thirtySeconds && secondsLeft === 30 && !spokenNotifications.current.has('30sec')) {
           spokenNotifications.current.add('30sec');
-          speak(messages.thirtySeconds, true);
+          speakAnnouncement(messages.thirtySeconds, lang, 'high');
         }
 
-        // 10 seconds
+        // 10 seconds - announce if not counting down
         if (secondsLeft === 10 && !spokenNotifications.current.has('10sec')) {
           spokenNotifications.current.add('10sec');
           if (!settings.countdown) {
-            speak(messages.tenSeconds, true);
+            speakAnnouncement(messages.tenSeconds, lang, 'high');
           }
         }
 
@@ -223,14 +226,16 @@ export default function Home() {
             spokenNotifications.current.add(key);
             const minutes = Math.floor(customSeconds / 60);
             const secs = customSeconds % 60;
-            speak(messages.timeRemaining(minutes, secs), true);
+            // Urgency based on time remaining
+            const urgency = customSeconds <= 30 ? 'high' : customSeconds <= 120 ? 'medium' : 'low';
+            speakAnnouncement(messages.timeRemaining(minutes, secs), lang, urgency);
           }
         }
 
-        // Countdown 10...1
+        // Countdown 10...1 with dramatic effect
         if (settings.countdown && secondsLeft <= 10 && secondsLeft > 0 && secondsLeft !== lastSpokenSecond.current) {
           lastSpokenSecond.current = secondsLeft;
-          speak(messages.countdownNumber(secondsLeft), true);
+          speakCountdownNumber(secondsLeft, lang, messages.countdownNumber(secondsLeft));
         }
       }
 
@@ -245,7 +250,7 @@ export default function Home() {
         speechSynthesis.cancel();
       }
     };
-  }, [targetDate, timezone, speak]);
+  }, [targetDate, timezone, getSpeechLang]);
 
   if (!isLoaded || targetYear === null) {
     return (
